@@ -1,16 +1,25 @@
-"""Python file to serve as the frontend"""
 import streamlit as st
 from streamlit_chat import message
+import pinecone
+import os
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.vectorstores import Pinecone
 
-from langchain.chains import ConversationChain
-from langchain.llms import OpenAI
 
+embeddings = OpenAIEmbeddings()
 
+# initialize pinecone
+pinecone.init(
+    api_key=str(os.environ['PINECONE_API_KEY']),  # find at app.pinecone.io
+    environment=str(os.environ['PINECONE_ENV'])  # next to api key in console
+)
+
+index_name = str(os.environ['PINECONE_INDEX_NAME'])
+
+# Backend / langchain
 def load_chain():
-    """Logic for loading the chain you want to use should go here."""
-    llm = OpenAI(temperature=0)
-    chain = ConversationChain(llm=llm)
-    return chain
+    docsearch = Pinecone.from_existing_index(index_name, embeddings)
+    return docsearch
 
 chain = load_chain()
 
@@ -33,7 +42,8 @@ def get_text():
 user_input = get_text()
 
 if user_input:
-    output = chain.run(input=user_input)
+    docs = chain.similarity_search(user_input)
+    output = docs[0].page_content
 
     st.session_state.past.append(user_input)
     st.session_state.generated.append(output)
